@@ -239,7 +239,7 @@ uploaded_file = st.file_uploader("Choose a Tax PDF file", type="pdf")
 
 if uploaded_file is not None:
     pdf_file = io.BytesIO(uploaded_file.read())
-    with st.spinner("Parsing your resume..."):
+    with st.spinner("Parsing your receipt..."):
         text = pdf_to_text(pdf_file)
         llm_response = tax_receipt_extractor(llm,text)
         output = parse_tax_receipt_output(llm_response)
