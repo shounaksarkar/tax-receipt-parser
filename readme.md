@@ -2,6 +2,8 @@
 
 This project is an innovative tool for extracting and parsing key information from tax receipts using advanced large language models (LLMs). The application processes PDFs of tax receipts and returns structured data, which can be used for further analysis or record-keeping.
 
+### Live demo: https://taxreceipt.streamlit.app/
+
 ## Features
 
 - **PDF to Text Conversion**: Uses `PyPDF2` to extract raw text from PDF files, making it accessible for further processing.
