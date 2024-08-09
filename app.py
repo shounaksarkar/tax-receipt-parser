@@ -1,18 +1,25 @@
 import streamlit as st
 import PyPDF2
 import pytesseract
+import ocrmypdf
 from PIL import Image
 from langchain_groq import ChatGroq
 import re
 import json
 import io
 
+#updated code for image embedded PDFs
 def pdf_to_text(pdf_file):
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-    text = ""
-    for page_num in range(len(pdf_reader.pages)):
-        page = pdf_reader.pages[page_num]
-        text += page.extract_text()
+    # First, applying OCR using OCRmyPDF to ensure that the PDF has a text layer
+    with io.BytesIO() as output_pdf:
+        ocrmypdf.ocr(pdf_file, output_pdf, deskew=True)
+        output_pdf.seek(0)  # Moving to the beginning of the BytesIO object
+        # Now using PyPDF2 to extract the text from the OCR'd PDF
+        pdf_reader = PyPDF2.PdfReader(output_pdf)
+        text = ""
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            text += page.extract_text()
     return text
 
 def image_to_text(image_file):
