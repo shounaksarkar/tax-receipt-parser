@@ -1,5 +1,7 @@
 import streamlit as st
 import PyPDF2
+import pytesseract
+from PIL import Image
 from langchain_groq import ChatGroq
 import re
 import json
@@ -11,6 +13,11 @@ def pdf_to_text(pdf_file):
     for page_num in range(len(pdf_reader.pages)):
         page = pdf_reader.pages[page_num]
         text += page.extract_text()
+    return text
+
+def image_to_text(image_file):
+    image = Image.open(image_file)
+    text = pytesseract.image_to_string(image)
     return text
 
 def tax_receipt_extractor(llm, receipt_text):
@@ -235,15 +242,25 @@ st.title("Tax Receipt Parser")
 llm = ChatGroq(temperature=0.5, groq_api_key="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", model_name="llama3-70b-8192")
 
 
-uploaded_file = st.file_uploader("Choose a Tax PDF file", type="pdf")
+option = st.selectbox("Choose input type", ["PDF", "Image"])
 
-if uploaded_file is not None:
-    pdf_file = io.BytesIO(uploaded_file.read())
-    with st.spinner("Parsing your receipt..."):
-        text = pdf_to_text(pdf_file)
-        llm_response = tax_receipt_extractor(llm,text)
-        output = parse_tax_receipt_output(llm_response)
-        st.write(output)
-    
+if option == "PDF":
+    uploaded_file = st.file_uploader("Choose a Tax PDF file", type="pdf")
+    if uploaded_file is not None:
+        pdf_file = io.BytesIO(uploaded_file.read())
+        with st.spinner("Parsing your receipt..."):
+            text = pdf_to_text(pdf_file)
+            llm_response = tax_receipt_extractor(llm, text)
+            output = parse_tax_receipt_output(llm_response)
+            st.write(output)
+
+elif option == "Image":
+    uploaded_image = st.file_uploader("Choose a Tax Image file", type=["png", "jpg", "jpeg"])
+    if uploaded_image is not None:
+        with st.spinner("Parsing your receipt..."):
+            text = image_to_text(uploaded_image)
+            llm_response = tax_receipt_extractor(llm, text)
+            output = parse_tax_receipt_output(llm_response)
+            st.write(output)    
 
 
