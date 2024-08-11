@@ -1,6 +1,3 @@
-Here's a `README.md` file for your Streamlit app:
-
-```markdown
 # Tax Receipts Management System
 
 This Streamlit app allows you to manage and analyze tax receipts. The app includes two main functionalities: **Adding Receipts** and **Analyzing Receipts**.
@@ -42,4 +39,4 @@ my_streamlit_app/
 
 
 Made with ❤️ using Streamlit.
-```
+
