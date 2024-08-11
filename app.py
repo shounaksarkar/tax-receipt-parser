@@ -242,26 +242,65 @@ st.title("Tax Receipt Parser")
 
 llm = ChatGroq(temperature=0.5, groq_api_key="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", model_name="llama3-70b-8192")
 
+username = st.secrets["mongodb"]["username"]
+password = st.secrets["mongodb"]["password"]
+hostname = st.secrets["mongodb"]["hostname"]
+port = st.secrets["mongodb"]["port"]
 
+connection_uri = f"mongodb+srv://{username}:{password}@{hostname}:{port}"
+client = MongoClient(connection_uri)
+
+db = client["receipt-data"]
+collection = db["test1"]
+
+# Initialize session state variables
+if 'processed_data' not in st.session_state:
+    st.session_state.processed_data = None
+if 'button_clicked' not in st.session_state:
+    st.session_state.button_clicked = False
+
+def on_button_click():
+    st.session_state.button_clicked = True
+
+# Function to handle PDF files
+def handle_pdf(uploaded_file):
+    pdf_file = io.BytesIO(uploaded_file.read())
+    with st.spinner("Parsing your receipt..."):
+        text = pdf_to_text(pdf_file)
+        llm_response = tax_receipt_extractor(llm, text)
+        output = parse_tax_receipt_output(llm_response)
+        return output
+
+# Function to handle image files
+def handle_image(uploaded_image):
+    with st.spinner("Parsing your receipt..."):
+        text = image_to_text(uploaded_image)
+        llm_response = tax_receipt_extractor(llm, text)
+        output = parse_tax_receipt_output(llm_response)
+        return output
+
+# UI for selecting input type
 option = st.selectbox("Choose input type", ["PDF", "Image"])
 
+# File upload and processing
 if option == "PDF":
     uploaded_file = st.file_uploader("Choose a Tax PDF file", type="pdf")
-    if uploaded_file is not None:
-        pdf_file = io.BytesIO(uploaded_file.read())
-        with st.spinner("Parsing your receipt..."):
-            text = pdf_to_text(pdf_file)
-            llm_response = tax_receipt_extractor(llm, text)
-            output = parse_tax_receipt_output(llm_response)
-            st.write(output)
+    if uploaded_file is not None and st.session_state.processed_data is None:
+        st.session_state.processed_data = handle_pdf(uploaded_file)
 
 elif option == "Image":
     uploaded_image = st.file_uploader("Choose a Tax Image file", type=["png", "jpg", "jpeg"])
-    if uploaded_image is not None:
-        with st.spinner("Parsing your receipt..."):
-            text = image_to_text(uploaded_image)
-            llm_response = tax_receipt_extractor(llm, text)
-            output = parse_tax_receipt_output(llm_response)
-            st.write(output)    
+    if uploaded_image is not None and st.session_state.processed_data is None:
+        st.session_state.processed_data = handle_image(uploaded_image)
 
+# Display output if available
+if st.session_state.processed_data is not None:
+    st.write(st.session_state.processed_data)
+    
+    # Show the button after displaying output
+    st.button("Add Data", on_click=on_button_click)
 
+# Handle button click
+if st.session_state.button_clicked:
+    result = collection.insert_one(st.session_state.processed_data)
+    st.write("Document Inserted", result.inserted_id)
