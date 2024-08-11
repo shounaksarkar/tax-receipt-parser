@@ -6,7 +6,7 @@ from PIL import Image
 from langchain_groq import ChatGroq
 import re
 import json
-from pymongo import MongoClient
+from pymongo import MongoClient, errors
 import io
 
 def pdf_to_text(pdf_file):
@@ -353,6 +353,9 @@ if st.session_state.processed_data is not None:
 
 # Handle button click
 if st.session_state.button_clicked:
-    result = collection.insert_one(st.session_state.processed_data)
-    st.write("Document Inserted", result.inserted_id)
-    st.write("Please reload the page to add new data. Working on Fixing this UI detail.")
+    try:
+        result = collection.insert_one(st.session_state.processed_data)
+        st.write("Document Inserted", result.inserted_id)
+        st.write("Please reload the website to enter a new receipt. Working on this UI fix.")
+    except errors.DuplicateKeyError:
+        st.error("This document already exists in the database. Duplicate entry detected.")
