@@ -21,10 +21,11 @@ def image_to_text(image_file):
     text = pytesseract.image_to_string(image)
     return text
 
+
 def tax_receipt_extractor(llm, receipt_text):
     prompt = f"""
     ## Instruction ##
-    You are an AI assistant tasked with extracting key information from tax receipts. Given a tax receipt text, extract and format the information for the following three fields:
+    You are an AI assistant tasked with extracting key information from tax receipts. Given a tax receipt text, extract and format the information for the following fields:
 
     1. CUSTOMER DETAILS
        - Extract all available customer information including name, billing address, shipping address (if different), phone number, and email.
@@ -42,7 +43,13 @@ def tax_receipt_extractor(llm, receipt_text):
          * Total amount for the product
 
     3. TOTAL AMOUNT
-       - Provide the final payable amount, including all taxes and any roundoffs.
+       - Provide the final payable amount, including all taxes and any roundoffs.(FLOAT FORMAT)
+
+    4. PURCHASE MONTH
+       - Extract the month of purchase from the invoice date.
+
+    5. PURCHASE YEAR
+       - Extract the year of purchase from the invoice date.(INTEGER FORMAT)
 
     Format your response exactly as shown in the examples below, using all caps for field names and quotation marks for the content. Use bullet points (-) for listing products. Ensure that the information is accurate and concise.
     If any information is missing, use "NA" for that field. Your answer must be based solely on the given receipt text.
@@ -72,7 +79,13 @@ def tax_receipt_extractor(llm, receipt_text):
       Total Amount: 7,61,159.00"
 
     TOTAL AMOUNT:
-    "₹7,68,771.00"
+    "768771.00"
+
+    PURCHASE MONTH:
+    "July"
+
+    PURCHASE YEAR:
+    "2024"
 
     Example 2:
 
@@ -124,7 +137,13 @@ def tax_receipt_extractor(llm, receipt_text):
       Total Amount: 3,71,70,000.00"
 
     TOTAL AMOUNT:
-    "₹9,32,20,000.00"
+    "93220000.00"
+
+    PURCHASE MONTH:
+    "August"
+
+    PURCHASE YEAR:
+    "2024"
 
     Example 3:
 
@@ -176,20 +195,35 @@ def tax_receipt_extractor(llm, receipt_text):
       Total Amount: 5,90,00,000.00"
 
     TOTAL AMOUNT:
-    "₹23,60,00,000.00"
+    "236000000.00"
+
+    PURCHASE MONTH:
+    "August"
+
+    PURCHASE YEAR:
+    "2024"
 
     Now, extract and format the information from the following tax receipt text:
 
     {receipt_text}
     """
-
     response = llm.invoke(prompt)
     return response.content
+
+def is_float(string):
+    try:
+        float(string)
+        return True
+    except ValueError:
+        return False
+
 def parse_tax_receipt_output(output):
     parsed_data = {
         "CUSTOMER DETAILS": "",
         "PRODUCTS": [],
-        "TOTAL AMOUNT": ""
+        "TOTAL AMOUNT": "",
+        "PURCHASE MONTH": "",
+        "PURCHASE YEAR": ""
     }
     lines = output.split('\n')
     current_field = None
@@ -201,6 +235,8 @@ def parse_tax_receipt_output(output):
             full_content = '\n'.join(content_buffer).strip()
             if current_field == "PRODUCTS":
                 parsed_data[current_field] = parse_products(full_content)
+            elif current_field in ["TOTAL AMOUNT", "PURCHASE MONTH", "PURCHASE YEAR"]:
+                parsed_data[current_field] = full_content.strip('"')
             else:
                 parsed_data[current_field] = full_content.strip('"')
             content_buffer = []
@@ -209,7 +245,7 @@ def parse_tax_receipt_output(output):
         products = []
         current_product = {}
         for line in products_text.split('\n'):
-            line = line.strip()
+            line = line.strip().strip('"')
             if line.startswith("-"):  # New product
                 if current_product:
                     products.append(current_product)
@@ -223,16 +259,30 @@ def parse_tax_receipt_output(output):
 
     for line in lines:
         line = line.strip()
-        if line.startswith(("CUSTOMER DETAILS:", "PRODUCTS:", "TOTAL AMOUNT:")):
+        if line.startswith(("CUSTOMER DETAILS:", "PRODUCTS:", "TOTAL AMOUNT:", "PURCHASE MONTH:", "PURCHASE YEAR:")):
             process_buffer()
             current_field = line.split(":")[0]
-        elif line.startswith('"') and line.endswith('"') and current_field != "PRODUCTS":
-            process_buffer()
-            parsed_data[current_field] = line.strip('"')
-        elif current_field:
+        elif line and current_field:
             content_buffer.append(line)
 
     process_buffer()  # Process any remaining content in the buffer
+    
+    # Ensure TOTAL AMOUNT is not empty
+    if not parsed_data["TOTAL AMOUNT"] and parsed_data["PRODUCTS"]:
+        parsed_data["TOTAL AMOUNT"] = parsed_data["PRODUCTS"][-1].get("Total Amount", "")
+
+    # Convert TOTAL AMOUNT to float if it's a valid number
+    if parsed_data["TOTAL AMOUNT"]:
+        amount_str = parsed_data["TOTAL AMOUNT"].replace("₹", "").replace(",", "")
+        if all(char.isdigit() or char == '.' for char in amount_str) and is_float(amount_str):
+            parsed_data["TOTAL AMOUNT"] = float(amount_str)
+
+    # Convert PURCHASE YEAR to integer if it's a valid number
+    if parsed_data["PURCHASE YEAR"]:
+        year_str = parsed_data["PURCHASE YEAR"]
+        if year_str.isdigit():
+            parsed_data["PURCHASE YEAR"] = int(year_str)
+    
     return parsed_data
 
 
