@@ -55,7 +55,7 @@ def get_latest_data(limit=10):
 # Display functions
 def show_latest_data():
     st.header("Latest Receipt Data")
-    num_entries = st.slider("Number of entries to display", 1, 50, 10)
+    num_entries = 10
     latest_data = get_latest_data(num_entries)
     st.table(latest_data)
 
