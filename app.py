@@ -355,3 +355,4 @@ if st.session_state.processed_data is not None:
 if st.session_state.button_clicked:
     result = collection.insert_one(st.session_state.processed_data)
     st.write("Document Inserted", result.inserted_id)
+    st.write("Please reload the page to add new data. Working on Fixing this UI detail.")
