@@ -6,6 +6,7 @@ from PIL import Image
 from langchain_groq import ChatGroq
 import re
 import json
+from pymongo import MongoClient
 import io
 
 def pdf_to_text(pdf_file):
